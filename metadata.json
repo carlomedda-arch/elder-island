@@ -1,0 +1,6 @@
+{
+  "name": "Skyward Ruins",
+  "description": "A 3D low-poly exploration adventure across floating celestial islands featuring soaring dog-faced birds in the sky, Fiocco the cat companion, spectral glider wings, bouncy runic pads, vertical wind updrafts, grappling hook mechanics, and ancient guardians.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
