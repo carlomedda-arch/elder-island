@@ -1,4 +1,4 @@
-name: Deploy game to GitHub Pages
+name: Deploy Arcade Lab to GitHub Pages
 
 on:
   push:
@@ -23,21 +23,18 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Prepare site
         run: |
           mkdir -p _site
-          cp game.html _site/index.html
+          cp site/index.html _site/index.html
+          cp game.html _site/game.html
           cp meteoriti.html _site/meteoriti.html
-
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
-
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: _site
-
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
