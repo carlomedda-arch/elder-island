@@ -28,6 +28,7 @@ jobs:
         run: |
           mkdir -p _site
           cp game.html _site/index.html
+          cp meteoriti.html _site/meteoriti.html
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
