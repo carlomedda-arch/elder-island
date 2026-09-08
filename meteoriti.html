@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Schiva i Meteoriti</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 20%,#263b73 0,#0b1025 48%,#050712 100%);font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#fff;overflow:hidden}
+  .wrap{width:min(94vw,900px);text-align:center}
+  h1{margin:0 0 8px;font-size:clamp(28px,5vw,46px);letter-spacing:.5px}
+  .sub{margin:0 0 12px;color:#cbd5ff;font-size:15px}
+  .gamebox{position:relative;border:2px solid rgba(255,255,255,.18);border-radius:18px;overflow:hidden;box-shadow:0 18px 50px rgba(0,0,0,.45);background:#070b18}
+  canvas{display:block;width:100%;height:auto;touch-action:none;cursor:crosshair}
+  .hud{position:absolute;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;pointer-events:none;font-weight:800;text-shadow:0 2px 5px #000}
+  .pill{padding:8px 12px;border-radius:999px;background:rgba(4,7,18,.55);border:1px solid rgba(255,255,255,.16);backdrop-filter:blur(5px)}
+  .overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(3,6,18,.72);padding:20px}
+  .card{max-width:520px;background:rgba(13,19,45,.95);border:1px solid rgba(255,255,255,.18);border-radius:20px;padding:28px;box-shadow:0 15px 45px rgba(0,0,0,.5)}
+  .card h2{margin:0 0 10px;font-size:32px}
+  .card p{margin:8px 0;color:#dbe2ff;line-height:1.5}
+  button{border:0;border-radius:12px;padding:13px 22px;margin-top:14px;background:#ffd83d;color:#17130a;font-size:17px;font-weight:900;cursor:pointer;box-shadow:0 8px 18px rgba(255,216,61,.2)}
+  button:hover{transform:translateY(-1px)}
+  .hint{margin-top:10px;color:#aeb9e8;font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🚀 Schiva i Meteoriti</h1>
+  <p class="sub">Sopravvivi il più a lungo possibile. Ogni secondo vale punti!</p>
+  <div class="gamebox">
+    <canvas id="game" width="800" height="500" aria-label="Gioco Schiva i Meteoriti"></canvas>
+    <div class="hud">
+      <div class="pill">⭐ Punti: <span id="score">0</span></div>
+      <div class="pill">❤️ Vite: <span id="lives">3</span></div>
+      <div class="pill">⏱️ <span id="time">45</span>s</div>
+    </div>
+    <div class="overlay" id="overlay">
+      <div class="card">
+        <h2>Pronto al decollo?</h2>
+        <p>Muovi la navicella con <b>← →</b> oppure con il mouse/dito.</p>
+        <p>Evita i meteoriti per 45 secondi e fai il punteggio più alto!</p>
+        <button id="start">INIZIA 🚀</button>
+        <div class="hint">Hai 3 vite. Un impatto = una vita in meno.</div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+(() => {
+  const c=document.getElementById('game'),ctx=c.getContext('2d');
+  const W=c.width,H=c.height;
+  const scoreEl=document.getElementById('score'), livesEl=document.getElementById('lives'), timeEl=document.getElementById('time');
+  const overlay=document.getElementById('overlay'), startBtn=document.getElementById('start');
+  let ship,rocks,stars,score,lives,timeLeft,running,last,spawnTimer,keys={},pointerX=null,invuln=0;
+
+  function reset(){
+    ship={x:W/2,y:H-58,w:54,h:28,speed:7}; rocks=[]; score=0; lives=3; timeLeft=45; spawnTimer=0; invuln=0;
+    stars=Array.from({length:95},()=>({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.8+.3,a:Math.random()*.8+.2}));
+    updateHud();
+  }
+  function updateHud(){scoreEl.textContent=Math.floor(score);livesEl.textContent=lives;timeEl.textContent=Math.ceil(timeLeft)}
+  function start(){reset();running=true;overlay.style.display='none';last=performance.now();requestAnimationFrame(loop)}
+  function end(win){running=false;overlay.style.display='flex';overlay.querySelector('h2').textContent=win?'Missione compiuta! 🎉':'Meteorite colpito! 💥';overlay.querySelector('p').innerHTML=`Punteggio finale: <b>${Math.floor(score)}</b>`;overlay.querySelectorAll('p')[1].textContent=win?'Hai resistito per 45 secondi!':'Prova a battere il tuo record.';startBtn.textContent='GIOCA ANCORA 🚀'}
+  function spawn(){
+    const r=12+Math.random()*20;
+    rocks.push({x:r+Math.random()*(W-r*2),y:-r,r,vy:2.3+Math.random()*2.4+Math.min(score/900,2),vx:(Math.random()-.5)*1.1,rot:Math.random()*6.28,spin:(Math.random()-.5)*.08});
+  }
+  function hit(a,b){return Math.abs(a.x-b.x)<a.w/2+b.r*.72 && Math.abs(a.y-b.y)<a.h/2+b.r*.72}
+  function drawShip(){
+    ctx.save();ctx.translate(ship.x,ship.y);ctx.globalAlpha=invuln>0 && Math.floor(invuln*12)%2?0.35:1;
+    ctx.fillStyle='#54d7ff';ctx.beginPath();ctx.moveTo(-ship.w/2,12);ctx.lineTo(0,-17);ctx.lineTo(ship.w/2,12);ctx.closePath();ctx.fill();
+    ctx.fillStyle='#dff8ff';ctx.beginPath();ctx.arc(0,-3,9,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#ff9d3d';ctx.beginPath();ctx.moveTo(-8,12);ctx.lineTo(0,28);ctx.lineTo(8,12);ctx.closePath();ctx.fill();ctx.restore();
+  }
+  function drawRock(r){
+    ctx.save();ctx.translate(r.x,r.y);ctx.rotate(r.rot);ctx.fillStyle='#9b765c';ctx.beginPath();
+    for(let i=0;i<9;i++){const a=i*Math.PI*2/9,rr=r.r*(.78+Math.random()*.35);ctx.lineTo(Math.cos(a)*rr,Math.sin(a)*rr)}ctx.closePath();ctx.fill();
+    ctx.fillStyle='rgba(60,35,25,.35)';ctx.beginPath();ctx.arc(-r.r*.25,-r.r*.15,r.r*.2,0,7);ctx.arc(r.r*.25,r.r*.2,r.r*.14,0,7);ctx.fill();ctx.restore();
+  }
+  function draw(){
+    const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#0a1230');g.addColorStop(1,'#121d45');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+    for(const s of stars){ctx.globalAlpha=s.a;ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,7);ctx.fill()}ctx.globalAlpha=1;
+    for(const r of rocks)drawRock(r);drawShip();
+  }
+  function loop(now){
+    if(!running)return; const dt=Math.min((now-last)/1000,.033);last=now;
+    timeLeft-=dt;score+=dt*12;spawnTimer-=dt;invuln=Math.max(0,invuln-dt);
+    if(keys.ArrowLeft)ship.x-=ship.speed; if(keys.ArrowRight)ship.x+=ship.speed;
+    if(pointerX!==null)ship.x += (pointerX-ship.x)*Math.min(1,dt*8);
+    ship.x=Math.max(ship.w/2,Math.min(W-ship.w/2,ship.x));
+    if(spawnTimer<=0){spawn();spawnTimer=Math.max(.18,.58-score/1500)}
+    for(const r of rocks){r.y+=r.vy;r.x+=r.vx;r.rot+=r.spin}
+    for(let i=rocks.length-1;i>=0;i--){const r=rocks[i];if(r.y>H+r.r){rocks.splice(i,1);score+=2;continue}if(invuln<=0&&hit(ship,r)){rocks.splice(i,1);lives--;invuln=1.1;if(lives<=0){draw();updateHud();end(false);return}}}
+    updateHud();draw();
+    if(timeLeft<=0){timeLeft=0;score+=100;draw();updateHud();end(true);return}
+    requestAnimationFrame(loop);
+  }
+  addEventListener('keydown',e=>{keys[e.key]=true;if(['ArrowLeft','ArrowRight',' '].includes(e.key))e.preventDefault()});
+  addEventListener('keyup',e=>keys[e.key]=false);
+  c.addEventListener('pointermove',e=>{const r=c.getBoundingClientRect();pointerX=(e.clientX-r.left)/r.width*W});
+  c.addEventListener('pointerleave',()=>pointerX=null);
+  c.addEventListener('pointerdown',e=>{const r=c.getBoundingClientRect();pointerX=(e.clientX-r.left)/r.width*W});
+  startBtn.addEventListener('click',start);reset();draw();
+})();
+</script>
+</body>
+</html>
